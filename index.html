@@ -391,7 +391,7 @@ footer p{font-size:11px;letter-spacing:0.08em;color:var(--muted)}
         <div class="lerr" id="lerr">Incorrect. Try admin / photo2026</div>
         <button type="submit" class="up-btn">Sign In</button>
       </form>
-      <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center">Demo: <strong>admin</strong> / <strong>photo2026</strong></p>
+      
     </div>
     <!-- PANEL -->
     <div id="admPnl" style="display:none">
@@ -411,11 +411,16 @@ footer p{font-size:11px;letter-spacing:0.08em;color:var(--muted)}
       <div class="tp act" id="tp0">
         <div class="dz" id="dz" onclick="document.getElementById('fi').click()" ondragover="dzOv(event)" ondragleave="dzLv()" ondrop="dzDp(event)">
           <svg width="34" height="34" fill="none" stroke="#bbb" stroke-width="1" viewBox="0 0 24 24" style="margin:0 auto 10px"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
-          <p>Drop photos &amp; videos here, or click to browse</p>
+          <p>Drop multiple photos &amp; videos here, or click to browse</p>
           <small>JPG · PNG · WEBP · MP4 · MOV — max 50 MB each</small>
         </div>
         <input type="file" id="fi" multiple accept="image/*,video/*" style="display:none" onchange="handleFiles(this.files)"/>
         <div class="up-prev" id="upPrev"></div>
+<div style="margin-top:10px;font-size:11px;color:#888;line-height:1.6">
+Images are automatically compressed.<br/>
+Recommended video size: below 15MB.
+</div>
+
         <div class="up-meta" id="upMeta">
           <div class="fg"><label>Title</label><input type="text" id="upTit" placeholder="e.g. Golden Hour at Mesa Arch"/></div>
           <div class="fg"><label>Category</label>
@@ -428,7 +433,7 @@ footer p{font-size:11px;letter-spacing:0.08em;color:var(--muted)}
 
       <!-- Home Picks -->
       <div class="tp" id="tp1">
-        <div class="cur-note">Choose <strong>5 photos</strong> for the homepage feature grid, plus <strong>1 video</strong> for the featured film slot. Click any slot to pick from your gallery.</div>
+        <div class="cur-note">Choose multiple photos (up to 5) for the homepage feature grid, plus <strong>1 video</strong> for the featured film slot. Click any slot to pick from your gallery.</div>
         <div class="cur-sub">Featured Photos — 5 slots</div>
         <div class="cur-slots" id="curPh"></div>
         <div class="cur-sub">Featured Video — 1 slot</div>
@@ -501,7 +506,16 @@ function defStore(){return{
 
 let S;
 try{S=JSON.parse(localStorage.getItem(SK))||defStore();}catch{S=defStore();}
-function save(){localStorage.setItem(SK,JSON.stringify(S));}
+
+function save(){
+  try{
+    localStorage.setItem(SK,JSON.stringify(S));
+  }catch(err){
+    console.error('Storage full', err);
+    showNtf('Storage full. Please remove some videos/photos.');
+  }
+}
+
 
 /* ─── NAV ─── */
 function goPage(p){
@@ -518,6 +532,31 @@ function goPage(p){
 function scrollContact(){goPage('home');setTimeout(()=>document.getElementById('contactSec').scrollIntoView({behavior:'smooth'}),80);}
 function toggleDrawer(){document.getElementById('hbg').classList.toggle('open');document.getElementById('drawer').classList.toggle('open');}
 function closeDrawer(){document.getElementById('hbg').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
+
+
+/* ─── EDIT ITEM ─── */
+function editItem(id){
+  const item=S.items.find(x=>x.id===id);
+  if(!item) return;
+
+  const newTitle=prompt('Update title', item.title);
+  if(newTitle===null) return;
+
+  const newCategory=prompt('Update category (landscape / portrait / street / other / video)', item.cat);
+  if(newCategory===null) return;
+
+  item.title=newTitle.trim() || item.title;
+  item.cat=newCategory.trim() || item.cat;
+
+  save();
+  renderHome();
+  renderPhotos();
+  renderVideos();
+  refreshAdmList();
+  renderCur();
+
+  showNtf('Gallery item updated!');
+}
 
 /* ─── PROFILE ─── */
 function applyProf(){
@@ -669,10 +708,21 @@ function sendMsg(e){e.preventDefault();document.getElementById('csucc').style.di
 let loggedIn=false;
 function openAdmin(){document.getElementById('mo').classList.add('open');if(loggedIn)showPanel();}
 function closeAdmin(){document.getElementById('mo').classList.remove('open');}
+const ADMIN_USER = atob('YWRtaW4=');
+const ADMIN_PASS = atob('cGhvdG8yMDI2');
+
 function doLogin(e){
   e.preventDefault();
-  if(document.getElementById('lu').value.trim()==='admin'&&document.getElementById('lp').value==='photo2026'){loggedIn=true;showPanel();document.getElementById('lerr').style.display='none';}
-  else document.getElementById('lerr').style.display='block';
+  const u=document.getElementById('lu').value.trim();
+  const p=document.getElementById('lp').value;
+
+  if(u===ADMIN_USER && p===ADMIN_PASS){
+    loggedIn=true;
+    showPanel();
+    document.getElementById('lerr').style.display='none';
+  } else {
+    document.getElementById('lerr').style.display='block';
+  }
 }
 function doLogout(){loggedIn=false;document.getElementById('loginSec').style.display='block';document.getElementById('admPnl').style.display='none';}
 function showPanel(){document.getElementById('loginSec').style.display='none';document.getElementById('admPnl').style.display='block';fillProf();refreshAdmList();renderCur();}
@@ -681,7 +731,7 @@ function swTab(i){document.querySelectorAll('.at').forEach((b,j)=>b.classList.to
 /* ─── UPLOAD ─── */
 let pFiles=[];
 function handleFiles(fl){
-  pFiles=Array.from(fl);
+  pFiles=[...pFiles, ...Array.from(fl)];
   const prev=document.getElementById('upPrev');prev.innerHTML='';
   pFiles.forEach((f,i)=>{
     const url=URL.createObjectURL(f);const wrap=document.createElement('div');wrap.className='up-it';
@@ -697,27 +747,126 @@ function dzOv(e){e.preventDefault();document.getElementById('dz').classList.add(
 function dzLv(){document.getElementById('dz').classList.remove('ov');}
 function dzDp(e){e.preventDefault();document.getElementById('dz').classList.remove('ov');handleFiles(e.dataTransfer.files);}
 
+
 function doUpload(){
-  if(!pFiles.length){showNtf('Select at least one file.');return;}
+  if(!pFiles.length){
+    showNtf('Select at least one file.');
+    return;
+  }
+
   const tit=document.getElementById('upTit').value.trim()||pFiles[0].name.replace(/\.[^.]+$/,'');
   const cat=document.getElementById('upCat').value;
-  const bw=document.getElementById('upBW'),bf=document.getElementById('upBF'),st=document.getElementById('upSt');
-  bw.style.display='block';bf.style.width='0%';st.textContent='Processing…';
-  let done=0;const tot=pFiles.length;
+
+  const bw=document.getElementById('upBW'),
+        bf=document.getElementById('upBF'),
+        st=document.getElementById('upSt');
+
+  bw.style.display='block';
+  bf.style.width='0%';
+  st.textContent='Processing…';
+
+  let done=0;
+  const tot=pFiles.length;
+
+  function finishUpload(){
+    done++;
+    bf.style.width=Math.round(done/tot*100)+'%';
+    st.textContent=`${done}/${tot} added`;
+
+    if(done===tot){
+      save();
+      renderHome();
+      renderCur();
+      refreshAdmList();
+      renderPhotos();
+      renderVideos();
+
+      setTimeout(()=>{
+        bw.style.display='none';
+        document.getElementById('upPrev').innerHTML='';
+        document.getElementById('upMeta').style.display='none';
+        document.getElementById('upTit').value='';
+        pFiles=[];
+        bf.style.width='0%';
+      },600);
+
+      showNtf(`${tot} item${tot>1?'s':''} added!`);
+    }
+  }
+
   pFiles.forEach((f,i)=>{
-    const r=new FileReader();
-    r.onload=ev=>{
-      const isV=f.type.startsWith('video');
-      S.items.unshift({id:Date.now()+i,type:isV?'video':'image',cat:isV?'video':cat,title:tot>1?`${tit} ${i+1}`:tit,src:ev.target.result,ph:false,h:HEIGHTS[Math.floor(Math.random()*HEIGHTS.length)]});
-      done++;bf.style.width=Math.round(done/tot*100)+'%';st.textContent=`${done}/${tot} added`;
-      if(done===tot){
-        save();renderHome();renderCur();refreshAdmList();
-        setTimeout(()=>{bw.style.display='none';document.getElementById('upPrev').innerHTML='';document.getElementById('upMeta').style.display='none';document.getElementById('upTit').value='';pFiles=[];bf.style.width='0%';},600);
-        showNtf(`${tot} item${tot>1?'s':''} added!`);
+
+    const isV=f.type.startsWith('video');
+
+    // Compress Images
+    if(!isV){
+
+      const img=new Image();
+
+      img.onload=function(){
+
+        const canvas=document.createElement('canvas');
+        const ctx=canvas.getContext('2d');
+
+        const maxWidth=1200;
+        const scale=Math.min(1,maxWidth/img.width);
+
+        canvas.width=img.width*scale;
+        canvas.height=img.height*scale;
+
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+        const compressed=canvas.toDataURL('image/jpeg',0.7);
+
+        S.items.unshift({
+          id:Date.now()+i,
+          type:'image',
+          cat:cat,
+          title:tot>1?`${tit} ${i+1}`:tit,
+          src:compressed,
+          ph:false,
+          h:HEIGHTS[Math.floor(Math.random()*HEIGHTS.length)]
+        });
+
+        finishUpload();
+      };
+
+      img.src=URL.createObjectURL(f);
+
+    } else {
+
+      // Video size validation
+      const maxVideoSize = 15 * 1024 * 1024;
+
+      if(f.size > maxVideoSize){
+        showNtf(`Video "${f.name}" exceeds 15MB limit.`);
+        finishUpload();
+        return;
       }
-    };r.readAsDataURL(f);
+
+      const r=new FileReader();
+
+      r.onload=ev=>{
+
+        S.items.unshift({
+          id:Date.now()+i,
+          type:'video',
+          cat:'video',
+          title:tot>1?`${tit} ${i+1}`:tit,
+          src:ev.target.result,
+          ph:false,
+          h:HEIGHTS[Math.floor(Math.random()*HEIGHTS.length)]
+        });
+
+        finishUpload();
+      };
+
+      r.readAsDataURL(f);
+    }
+
   });
 }
+
 
 /* ─── CURATION ─── */
 let pkMode='photo',pkSlot=0;
@@ -776,6 +925,7 @@ function refreshAdmList(){
     el.innerHTML=`${hasImg?`<img class="adm-th" src="${item.src}" alt="${item.title}"/>`:
       `<div class="adm-th" style="background:${CAT_BG[item.cat]||'#f0f0f0'};display:flex;align-items:center;justify-content:center;font-size:18px;color:#ccc">${item.type==='video'?'▶':'◻'}</div>`}
     <div class="adm-inf"><div class="adm-nm">${item.title}</div><div class="adm-mt">${item.type} · ${item.cat}</div></div>
+    <button class="adm-dl" style="margin-right:6px;border-color:#cfd6e6;color:#506080" onclick="editItem(${item.id})">Edit</button>
     <button class="adm-dl" onclick="delItem(${item.id})">Remove</button>`;
     list.appendChild(el);
   });
@@ -785,6 +935,31 @@ function delItem(id){
   S.cur.pids=S.cur.pids.map(x=>x===id?null:x);
   if(S.cur.vid===id)S.cur.vid=null;
   save();renderHome();renderCur();refreshAdmList();showNtf('Item removed.');
+}
+
+
+/* ─── EDIT ITEM ─── */
+function editItem(id){
+  const item=S.items.find(x=>x.id===id);
+  if(!item) return;
+
+  const newTitle=prompt('Update title', item.title);
+  if(newTitle===null) return;
+
+  const newCategory=prompt('Update category (landscape / portrait / street / other / video)', item.cat);
+  if(newCategory===null) return;
+
+  item.title=newTitle.trim() || item.title;
+  item.cat=newCategory.trim() || item.cat;
+
+  save();
+  renderHome();
+  renderPhotos();
+  renderVideos();
+  refreshAdmList();
+  renderCur();
+
+  showNtf('Gallery item updated!');
 }
 
 /* ─── PROFILE ─── */
